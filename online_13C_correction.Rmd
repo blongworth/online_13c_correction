@@ -1,0 +1,23 @@
+---
+title: "Online 13C Correction"
+output: html_notebook
+---
+
+Use raw OX-I data to assess online 13C correction effect on precision and accuracy over time and between systems.
+
+
+```{r}
+plot(cars)
+```
+
+Collect data. Start with one wheel.
+
+Function for online correction.
+
+Get dataset with 14/12, 13/12, and online corrected 14/12. Offline correction shouldn't matter much for this unless there's pre-graphitization fractionation in OX-I.
+
+Summarize: Is OX-I more precise with or without correction? How does this relate to current.
+
+## Accuracy
+
+For this we'll need normalized data for secondaries, and we'll need to back out 13C correction or renormalize to produce uncorrected values and correct offline.
