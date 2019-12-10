@@ -7,10 +7,42 @@ Use raw OX-I data to assess online 13C correction effect on precision and accura
 
 
 ```{r}
-plot(cars)
+library(tidyverse)
+library(amstools)
 ```
 
 Collect data. Start with one wheel.
+
+```{r}
+data <- getRawWheel("USAMS112219") %>%
+  filter(sample_type == "S") %>%
+  mutate(norm1412 = he14_12/mean(he14_12),
+         normcor1412 = corr_14_12/mean(corr_14_12))
+
+data %>% 
+  ggplot(aes(x = he12c)) +
+    geom_point(aes(y = he14_12), color = "blue") +
+    geom_point(aes(y = corr_14_12), color = "red") 
+    
+data %>% 
+  ggplot(aes(x = he12c)) +
+    geom_point(aes(y = norm1412), color = "blue") +
+    geom_point(aes(y = normcor1412), color = "red") 
+
+data %>%
+  summarize(mean1412 = mean(he14_12),
+            sd1412 = sd(he14_12),
+            sdn1412 = sd(norm1412),
+            rsd1412 = rsd(he14_12),
+            meancor1412 = mean(corr_14_12),
+            sdcor1412 = sd(corr_14_12),
+            sdncor1412 = sd(normcor1412),
+            rsdcor1412 = rsd(corr_14_12))
+           
+
+
+```
+
 
 Function for online correction.
 
