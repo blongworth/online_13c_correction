@@ -1,6 +1,8 @@
 ---
 title: "Online 13C Correction"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 Use raw OX-I data to assess online 13C correction effect on precision and accuracy over time and between systems.
@@ -43,6 +45,34 @@ data %>%
 
 ```
 
+Same for last 6 months, both systems.
+
+```{r}
+data <- getRawData("2019-05-01") %>%
+  filter(sample_type == "S",
+         grepl("OX-I/", sample_name)) %>%
+  group_by(wheel) %>%
+  mutate(system = str_sub(wheel, 1, 5),
+         he12cp = ifelse(system == "USAMS", he12c/3, he12c),
+         norm1412 = he14_12/mean(he14_12),
+         normcor1412 = corr_14_12/mean(corr_14_12))
+
+
+data %>%
+  group_by(system) %>%
+  summarize(mean1412 = mean(he14_12),
+            sd1412 = sd(he14_12),
+            sdn1412 = sd(norm1412),
+            meancor1412 = mean(corr_14_12),
+            sdcor1412 = sd(corr_14_12),
+            sdncor1412 = sd(normcor1412))
+
+data %>% 
+  ggplot(aes(x = he12cp)) +
+    geom_point(aes(y = norm1412), color = "blue", alpha = 0.2) +
+    geom_point(aes(y = normcor1412), color = "red", alpha = 0.2) +
+    facet_grid(rows = vars(system))
+```
 
 Function for online correction.
 
