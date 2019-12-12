@@ -14,13 +14,16 @@ I have normalized the run values for these ratios to account for machine variabi
 
 First, load the needed libraries and define some functions for getting, massaging, summarizing and plotting the data.
 
-```{r}
+```{r, warning=F, message=F}
 # Load libraries
 library(tidyverse)
 library(amstools)
 
 # Plot style
 theme_set(theme_bw())
+
+# Set sig digits
+options(digits = 2)
 
 # Define functions
 
@@ -50,14 +53,14 @@ mungeData <- function(data) {
 sumData <- function(data) {
   data %>%
     group_by(system) %>%
-    summarize(mean1412 = mean(he14_12),
-              sd1412 = sd(he14_12),
-              sdn1412 = sd(norm1412),
+    summarize("Raw 14/12 mean" = mean(he14_12),
+              #sd1412 = sd(he14_12),
+              "Norm 14/12 SD" = sd(norm1412),
               #mean1312 = mean(d13c),
               #sd1312 = sd(d13c),
-              meancor1412 = mean(corr_14_12),
-              sdcor1412 = sd(corr_14_12),
-              sdncor1412 = sd(normcor1412))
+              #meancor1412 = mean(corr_14_12),
+              #sdcor1412 = sd(corr_14_12),
+              "Norm Cor 14/12 SD" = sd(normcor1412))
 }
 
 # plot current dependence for corrected and uncorrected data
@@ -78,7 +81,7 @@ plotData <- function(data) {
 
 ## One wheel
 
-Here's data for a single wheel (USAMS112219). From the plot and summary, it's clear that the correction does not improve every measurement, but that it does reduce the variability of OX-I's on the wheel.
+Here's data for a single wheel (USAMS112219). The table shows the mean raw 14/12 ratio, the standard deviation of the same, normalized to mean = 1, and the standard deviation of the corrected ratio, normalized to mean = 1. From the plot and summary, it's clear that the correction does not improve every measurement, but that it does reduce the variability of OX-I's on the wheel. 
 
 ```{r}
 data <- getRawWheel("USAMS112219") %>%
@@ -90,8 +93,7 @@ plotData(data)
 
 ## Last 6 months
 
-This is the same analysis for the last 6 months of data. 
-Same for last 6 months, both systems.
+This is the same analysis for the last 6 months of data on both systems. Same plot and table fields. It's pretty clear the correction is improving things on both systems, but is overcorrecting (negative slope of blue fit line) on both. 
 
 ```{r}
 data <- getData("2019-05-01")
@@ -101,7 +103,7 @@ plotData(data)
 
 ## USAMS before improvement
 
-Same analysis for the 6 months prior to the improvements on USAMS in spring 2019. While the online correction still improves standard variability, it's clear the variability was higher. The plot shows some clear current dependence that is partly fixed by the online correction, but I'm fairly sure that was the major cause of the problems with USAMS data quality.
+Same analysis for the 6 months prior to the improvements on USAMS in spring 2019. While the online correction still improves standard variability, it's clear the variability was higher both before and after 13C correction. The plot shows some clear current dependence that is partly fixed by the online correction, but I'm fairly sure that was the major cause of the problems with USAMS data quality.
 
 
 ```{r}
