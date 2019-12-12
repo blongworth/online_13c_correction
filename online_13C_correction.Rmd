@@ -3,116 +3,119 @@ title: "Online 13C Correction"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
-Use raw OX-I data to assess online 13C correction effect on precision and accuracy over time and between systems.
+Use raw OX-I data to assess online 13C correction effect on precision and accuracy over time and between systems. The raw data stored by snicser includes raw 14/12 ratios for each run of a sample, and also a 14/12 ratio that has been corrected for the online 13/12 measurement and detector deadtime for that run. 
 
+I have normalized the run values for these ratios to account for machine variabilty from wheel to wheel by dividing the individual measurements by the mean of measurements for a wheel. I have not(yet) grouped them by target.
+
+## Libraries and functions
+
+First, load the needed libraries and define some functions for getting, massaging, summarizing and plotting the data.
 
 ```{r}
+# Load libraries
 library(tidyverse)
 library(amstools)
+
+# Plot style
+theme_set(theme_bw())
+
+# Define functions
+
+# Get data from database, select standards and add normalized data
+getData <- function(...) {
+  getRawData(...) %>%
+    mungeData()
+}
+
+# Select standards and add normalized data
+mungeData <- function(data) {
+  data %>%
+    filter(sample_type == "S",
+           grepl("OX-[I|1]/", sample_name),
+           ok_calc == 1) %>%
+    group_by(wheel) %>%
+    mutate(system = str_sub(wheel, 1, 5),
+           he12cp = ifelse(system == "USAMS", he12c/3, he12c),
+           le12c = ifelse(system == "USAMS", -le12c, le12c),
+           norm1412 = he14_12/mean(he14_12),
+           normcor1412 = corr_14_12/mean(corr_14_12)) %>%
+    filter(norm1412 > .9,
+           he12cp < 5E-5)
+}
+
+# Summarize data by system
+sumData <- function(data) {
+  data %>%
+    group_by(system) %>%
+    summarize(mean1412 = mean(he14_12),
+              sd1412 = sd(he14_12),
+              sdn1412 = sd(norm1412),
+              #mean1312 = mean(d13c),
+              #sd1312 = sd(d13c),
+              meancor1412 = mean(corr_14_12),
+              sdcor1412 = sd(corr_14_12),
+              sdncor1412 = sd(normcor1412))
+}
+
+# plot current dependence for corrected and uncorrected data
+plotData <- function(data) {
+  data %>% 
+    gather(norm1412, normcor1412, key = "method", value = "c1412") %>%
+    mutate(method = recode(method, norm1412 = "Raw 14/12", normcor1412 = "Corrected 14/12")) %>%
+    ggplot(aes(he12cp, c1412, color = method)) +
+      geom_point(alpha = 0.2) +
+      geom_smooth(method = lm) +
+      facet_grid(rows = vars(system)) +
+      labs(title = "13C corrected and uncorrected 14/12",
+           x = "HE 12C current",
+           y = "14/12 ratio (normalized)",
+           color = "Correction") 
+}
 ```
 
-Collect data. Start with one wheel.
+## One wheel
+
+Here's data for a single wheel (USAMS112219). From the plot and summary, it's clear that the correction does not improve every measurement, but that it does reduce the variability of OX-I's on the wheel.
 
 ```{r}
 data <- getRawWheel("USAMS112219") %>%
-  filter(sample_type == "S") %>%
-  mutate(norm1412 = he14_12/mean(he14_12),
-         normcor1412 = corr_14_12/mean(corr_14_12))
+  mungeData()
 
-data %>% 
-  ggplot(aes(x = he12c)) +
-    geom_point(aes(y = he14_12), color = "blue") +
-    geom_point(aes(y = corr_14_12), color = "red") 
-    
-data %>% 
-  ggplot(aes(x = he12c)) +
-    geom_point(aes(y = norm1412), color = "blue") +
-    geom_point(aes(y = normcor1412), color = "red") 
-
-data %>%
-  summarize(mean1412 = mean(he14_12),
-            sd1412 = sd(he14_12),
-            sdn1412 = sd(norm1412),
-            rsd1412 = rsd(he14_12),
-            meancor1412 = mean(corr_14_12),
-            sdcor1412 = sd(corr_14_12),
-            sdncor1412 = sd(normcor1412),
-            rsdcor1412 = rsd(corr_14_12))
-           
-
-
+sumData(data)
+plotData(data)
 ```
 
+## Last 6 months
+
+This is the same analysis for the last 6 months of data. 
 Same for last 6 months, both systems.
 
 ```{r}
-data <- getRawData("2019-05-01") %>%
-  filter(sample_type == "S",
-         grepl("OX-I/", sample_name)) %>%
-  group_by(wheel) %>%
-  mutate(system = str_sub(wheel, 1, 5),
-         he12cp = ifelse(system == "USAMS", he12c/3, he12c),
-         norm1412 = he14_12/mean(he14_12),
-         normcor1412 = corr_14_12/mean(corr_14_12))
-
-
-data %>%
-  group_by(system) %>%
-  summarize(mean1412 = mean(he14_12),
-            sd1412 = sd(he14_12),
-            sdn1412 = sd(norm1412),
-            meancor1412 = mean(corr_14_12),
-            sdcor1412 = sd(corr_14_12),
-            sdncor1412 = sd(normcor1412))
-
-data %>% 
-  ggplot(aes(x = he12cp)) +
-    geom_point(aes(y = norm1412), color = "blue", alpha = 0.2) +
-    geom_point(aes(y = normcor1412), color = "red", alpha = 0.2) +
-    facet_grid(rows = vars(system))
+data <- getData("2019-05-01")
+sumData(data)
+plotData(data)
 ```
 
-### USAMS before improvement
+## USAMS before improvement
+
+Same analysis for the 6 months prior to the improvements on USAMS in spring 2019. While the online correction still improves standard variability, it's clear the variability was higher. The plot shows some clear current dependence that is partly fixed by the online correction, but I'm fairly sure that was the major cause of the problems with USAMS data quality.
+
 
 ```{r}
-data <- getRawData("2018-05-01", "2019-01-01") %>%
-  filter(sample_type == "S",
-         grepl("OX-I/", sample_name)) %>%
-  group_by(wheel) %>%
-  mutate(system = str_sub(wheel, 1, 5),
-         he12cp = ifelse(system == "USAMS", he12c/3, he12c),
-         norm1412 = he14_12/mean(he14_12),
-         normcor1412 = corr_14_12/mean(corr_14_12)) %>%
-  filter(norm1412 > .9)
-
-
-data %>%
-  group_by(system) %>%
-  summarize(mean1412 = mean(he14_12),
-            sd1412 = sd(he14_12),
-            sdn1412 = sd(norm1412),
-            meancor1412 = mean(corr_14_12),
-            sdcor1412 = sd(corr_14_12),
-            sdncor1412 = sd(normcor1412))
-
-data %>% 
-  ggplot(aes(x = he12cp)) +
-    geom_point(aes(y = norm1412), color = "blue", alpha = 0.2) +
-    geom_point(aes(y = normcor1412), color = "red", alpha = 0.2) +
-    facet_grid(rows = vars(system))
-
-data %>% 
-```
-```{r}
-
+data <- getData("2018-06-01", "2019-01-01")
+sumData(data)
+plotData(data)
 ```
 
-Get dataset with 14/12, 13/12, and online corrected 14/12. Offline correction shouldn't matter much for this unless there's pre-graphitization fractionation in OX-I.
+## Questions
 
-Summarize: Is OX-I more precise with or without correction? How does this relate to current.
+* I took only unflagged runs, but it might be better to look at everything.
+* Effect of the correction per-target: Not sure if this makes a difference, but should be pretty easy to implement if needed.
 
-## Accuracy
+## Next steps
 
-For this we'll need normalized data for secondaries, and we'll need to back out 13C correction or renormalize to produce uncorrected values and correct offline.
+* Accuracy: We can't look at the correction's effect on accuracy without renormalizing the data without the correction using SNICSer or another tool. I may try this with a few wheels to get a sense of how this works.
+* Offline correction: I should be able to pull irms OX-I data to test this, but we only measure about 1/10 of the bulb OX-I offline, and the values vary by less than a permil. Online 13C varies by much more than this (~3permil).
