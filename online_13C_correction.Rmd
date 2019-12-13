@@ -101,6 +101,10 @@ data <- getData("2019-05-01")
 sumData(data)
 plotData(data)
 plotData(data, "normd13c")
+ggplot(data, aes(he12cp, normd13c)) + 
+  geom_point(alpha = .2) +
+  geom_smooth(method = "lm") + 
+  facet_grid(rows = vars(system))
 ```
 
 ## USAMS before improvement
