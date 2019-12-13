@@ -38,11 +38,13 @@ mungeData <- function(data) {
   data %>%
     filter(sample_type == "S",
            grepl("OX-[I|1]/", sample_name),
-           ok_calc == 1) %>%
+           ok_calc == 1,
+           d13c > -100) %>%
     group_by(wheel) %>%
     mutate(system = str_sub(wheel, 1, 5),
            he12cp = ifelse(system == "USAMS", he12c/3, he12c),
            le12c = ifelse(system == "USAMS", -le12c, le12c),
+           normd13c = d13c/mean(d13c),
            norm1412 = he14_12/mean(he14_12),
            normcor1412 = corr_14_12/mean(corr_14_12)) %>%
     filter(norm1412 > .9,
@@ -54,26 +56,24 @@ sumData <- function(data) {
   data %>%
     group_by(system) %>%
     summarize("Raw 14/12 mean" = mean(he14_12),
-              #sd1412 = sd(he14_12),
               "Norm 14/12 SD" = sd(norm1412),
-              #mean1312 = mean(d13c),
-              #sd1312 = sd(d13c),
-              #meancor1412 = mean(corr_14_12),
-              #sdcor1412 = sd(corr_14_12),
+              d13cm = mean(d13c),
+              d13csd = sd(d13c),
+              d13crsd = rsd(d13c),
               "Norm Cor 14/12 SD" = sd(normcor1412))
 }
 
 # plot current dependence for corrected and uncorrected data
-plotData <- function(data) {
+plotData <- function(data, x = "he12cp", ...) {
   data %>% 
     gather(norm1412, normcor1412, key = "method", value = "c1412") %>%
     mutate(method = recode(method, norm1412 = "Raw 14/12", normcor1412 = "Corrected 14/12")) %>%
-    ggplot(aes(he12cp, c1412, color = method)) +
+    ggplot(aes_(as.name(x), ~c1412, color = ~method)) +
       geom_point(alpha = 0.2) +
       geom_smooth(method = lm) +
       facet_grid(rows = vars(system)) +
       labs(title = "13C corrected and uncorrected 14/12",
-           x = "HE 12C current",
+           x = ifelse(as.name(x) == "he12cp", "HE 12C current", as.character(x)),
            y = "14/12 ratio (normalized)",
            color = "Correction") 
 }
@@ -89,6 +89,7 @@ data <- getRawWheel("USAMS112219") %>%
 
 sumData(data)
 plotData(data)
+plotData(data, "normd13c")
 ```
 
 ## Last 6 months
@@ -99,6 +100,7 @@ This is the same analysis for the last 6 months of data on both systems. Same pl
 data <- getData("2019-05-01")
 sumData(data)
 plotData(data)
+plotData(data, "normd13c")
 ```
 
 ## USAMS before improvement
@@ -110,6 +112,7 @@ Same analysis for the 6 months prior to the improvements on USAMS in spring 2019
 data <- getData("2018-06-01", "2019-01-01")
 sumData(data)
 plotData(data)
+plotData(data, "normd13c")
 ```
 
 ## Questions
