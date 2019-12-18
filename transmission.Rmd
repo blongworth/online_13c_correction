@@ -1,0 +1,53 @@
+---
+title: "Plot transmission over a wheel"
+output: html_notebook
+---
+
+```{r, warning=F, message=F}
+# Load libraries
+library(tidyverse)
+library(amstools)
+
+# Plot style
+theme_set(theme_bw())
+
+# Set sig digits
+options(digits = 2)
+
+# Define functions
+
+# Get data from database, select standards and add normalized data
+getData <- function(...) {
+  getRawData(...) %>%
+    mungeData()
+}
+
+# Select standards and add normalized data
+mungeData <- function(data) {
+  data %>%
+    filter(sample_type == "S",
+           grepl("OX-[I|1]/", sample_name),
+           ok_calc == 1,
+           d13c > -100) %>%
+    group_by(wheel) %>%
+    mutate(system = str_sub(wheel, 1, 5),
+           runtime =as.POSIXct(runtime),
+           he12cp = ifelse(system == "USAMS", he12c/3, he12c),
+           le12c = ifelse(system == "USAMS", -le12c, le12c),
+           trans = he12cp/le12c,
+           normd13c = d13c/mean(d13c),
+           norm1412 = he14_12/mean(he14_12),
+           normcor1412 = corr_14_12/mean(corr_14_12)) %>%
+    filter(norm1412 > .9,
+           he12cp < 5E-5)
+}
+```
+
+
+```{r}
+data <- getRawWheel("CFAMS121319") %>%
+  mungeData()
+
+ggplot(data, aes(runtime, trans, color = as.factor(wheel_pos))) +
+  geom_point()
+```
